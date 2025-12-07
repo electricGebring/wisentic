@@ -54,6 +54,6 @@ export const useCurrencyStore = defineStore('currency', {
   // Getters: Beräknade värden som kan nås från komponenter
   getters: {
     // Hämta en specifik valuta baserat på kod
-    getExchangeRate: (state) => (currency: string) => state.exchangeRates[currency],
+    getExchangeRate: (state) => (currency: string) => state.exchangeRates[currency]
   },
 })

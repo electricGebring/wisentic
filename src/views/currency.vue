@@ -1,36 +1,36 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, nextTick } from 'vue'
-import { useCurrencyStore } from '@/stores/currency'
+import { onMounted, ref, computed } from "vue";
+import { useCurrencyStore } from "@/stores/currency";
 
 // Hämta Pinia-storen för valutakurser
-const store = useCurrencyStore()
+const store = useCurrencyStore();
 
 // State för sökfältet
-const search = ref('')
+const search = ref("");
 
 // Spåra vilken kod som redigeras (ex: 'USD', 'EUR')
-const editingCode = ref<string | null>(null)
+const editingCode = ref<string | null>(null);
 
 // Spåra vilket fält som redigeras ('value' eller 'unit')
-const editingField = ref<'value' | 'unit' | null>(null)
+const editingField = ref<"value" | "unit" | null>(null);
 
 // Hämta data från storen när komponenten monteras
 onMounted(async () => {
-  await store.fetchExchangeRates()
-})
+  await store.fetchExchangeRates();
+});
 
 // Formatera tal enligt svenska standarder (6 decimaler max)
-const valueFormatter = new Intl.NumberFormat('sv-SE', {
+const valueFormatter = new Intl.NumberFormat("sv-SE", {
   maximumFractionDigits: 6,
-})
+});
 
 // Computed: Filtrera och sortera valutorna baserat på sökfältet
 const filteredAndSortedRates = computed(() => {
   // Få alla valuta-entries från storen
-  const entries = Object.entries(store.exchangeRates || {})
+  const entries = Object.entries(store.exchangeRates || {});
   // Gör söktermen till gemener för case-insensitive sökning
-  const q = search.value.trim().toLowerCase()
-  
+  const q = search.value.trim().toLowerCase();
+
   // Filtrera baserat på kod, namn eller enhet
   const filtered = q
     ? entries.filter(([code, r]) => {
@@ -38,62 +38,45 @@ const filteredAndSortedRates = computed(() => {
           code.toLowerCase().includes(q) ||
           (r.name && String(r.name).toLowerCase().includes(q)) ||
           (r.unit && String(r.unit).toLowerCase().includes(q))
-        )
+        );
       })
-    : entries
-  
+    : entries;
+
   // Sortera alfabetiskt efter valutakod
-  return filtered.sort(([a], [b]) => a.localeCompare(b))
-})
+  return filtered.sort(([a], [b]) => a.localeCompare(b));
+});
 
-// Starta redigering av ett fält (value eller unit)
-const startEdit = async (code: string, field: 'value' | 'unit', currentValue: string | number) => {
-  editingCode.value = code
-  editingField.value = field
-  
-  // Vänta på att DOM uppdateras innan vi hittar elementet
-  await nextTick()
-  
-  // Hitta input-elementet baserat på kod och fält
-  const el = document.querySelector(`[data-edit-code="${code}"][data-edit-field="${field}"]`) as HTMLDivElement
-  if (el) {
-    // Sätt innehållet till det nuvarande värdet
-    el.textContent = String(currentValue)
-    // Fokusera på elementet
-    el.focus()
-    
-    // Markera all text så den kan bytas ut direkt
-    const range = document.createRange()
-    range.selectNodeContents(el)
-    const sel = window.getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(range)
-  }
-}
+const localUnit = ref("");
+const localValue = ref<number | null>(null);
 
-// Spara ändringar till storen
-const saveEdit = (code: string, field: 'value' | 'unit') => {
-  const el = document.querySelector(`[data-edit-code="${code}"][data-edit-field="${field}"]`) as HTMLDivElement
-  
-  // Kontrollera att elementet och valutan existerar
-  if (el && store.exchangeRates[code]) {
-    if (field === 'value') {
-      // Konvertera till nummer för värde-fältet
-      const newValue = Number(el.textContent || '')
-      // Validera att det är ett giltigt nummer
-      if (!isNaN(newValue)) {
-        store.exchangeRates[code].value = newValue
-      }
-    } else if (field === 'unit') {
-      // Spara enheten direkt (ex: 'SEK', 'USD')
-      store.exchangeRates[code].unit = el.textContent || ''
-    }
+// När man startar edit
+const startEdit = (
+  code: string,
+  field: "value" | "unit",
+  currentValue: string | number
+) => {
+  editingCode.value = code;
+  editingField.value = field;
+  if (field === "unit") {
+    localUnit.value = String(currentValue ?? "");
+  } else {
+    localValue.value = Number(currentValue ?? 0);
   }
-  
-  // Stäng redigeringslägget
-  editingCode.value = null
-  editingField.value = null
-}
+};
+
+// Spara edit
+const saveEdit = (code: string, field: "value" | "unit") => {
+  if (!store.exchangeRates[code]) return;
+
+  if (field === "unit") {
+    store.exchangeRates[code].unit = localUnit.value.trim();
+  } else {
+    const parsed = Number(localValue.value); // använd motsv. ref för value
+    if (!Number.isNaN(parsed)) store.exchangeRates[code].value = parsed;
+  }
+  editingCode.value = null;
+  editingField.value = null;
+};
 </script>
 
 <template>
@@ -112,7 +95,11 @@ const saveEdit = (code: string, field: 'value' | 'unit') => {
 
     <!-- Laddnings-spinner medan data hämtas -->
     <div v-if="store.loading" class="space-y-3">
-      <div v-for="n in 8" :key="n" class="h-24 bg-gray-100 animate-pulse rounded-lg"></div>
+      <div
+        v-for="n in 8"
+        :key="n"
+        class="h-24 bg-gray-100 animate-pulse rounded-lg"
+      ></div>
     </div>
 
     <!-- Felmeddelande om något gick fel vid hämtning -->
@@ -125,16 +112,18 @@ const saveEdit = (code: string, field: 'value' | 'unit') => {
       <div class="space-y-3">
         <!-- Loopa igenom alla filtrerade och sorterade valutor -->
         <article
-          v-for="([code, rate], index) in filteredAndSortedRates"
+          v-for="[code, rate] in filteredAndSortedRates"
           :key="code"
           class="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition"
         >
           <div class="flex items-start justify-between gap-4">
             <!-- Vänster sida: Kod, namn och enhet -->
             <div class="flex-1">
-              <div class="text-xs text-gray-500 uppercase tracking-wider">{{ code }}</div>
+              <div class="text-xs text-gray-500 uppercase tracking-wider">
+                {{ code }}
+              </div>
               <div class="text-lg font-semibold">{{ rate.name }}</div>
-              
+
               <!-- Enhet med klickbar redigering -->
               <div class="text-sm text-gray-600 mt-1">
                 Enhet:
@@ -146,17 +135,21 @@ const saveEdit = (code: string, field: 'value' | 'unit') => {
                 >
                   {{ rate.unit }}
                 </span>
-                
+
                 <!-- Contenteditable div för redigering av enhet -->
-                <div
-                  v-if="editingCode === code && editingField === 'unit'"
-                  :data-edit-code="code"
-                  data-edit-field="unit"
-                  contenteditable="true"
+                <input
+                  v-else
+                  v-model="localUnit"
                   @keydown.enter.prevent="saveEdit(code, 'unit')"
                   @keydown.escape="saveEdit(code, 'unit')"
                   @blur="saveEdit(code, 'unit')"
-                  class="px-2 py-1 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-16 bg-white inline-block"
+                  type="text"
+                  autocomplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  name="unit-{{ code }}"
+                  class="px-2 py-1 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-16 bg-white"
+                  autofocus
                 />
               </div>
             </div>
@@ -164,18 +157,26 @@ const saveEdit = (code: string, field: 'value' | 'unit') => {
             <!-- Höger sida: Värde och typ-badge -->
             <div class="text-right">
               <!-- Contenteditable div för redigering av värde -->
-              <div v-if="editingCode === code && editingField === 'value'" class="mb-2">
-                <div
-                  :data-edit-code="code"
-                  data-edit-field="value"
-                  contenteditable="true"
+              <div
+                v-if="editingCode === code && editingField === 'value'"
+                class="mb-2"
+              >
+                <input
+                  v-model.number="localValue"
                   @keydown.enter.prevent="saveEdit(code, 'value')"
                   @keydown.escape="saveEdit(code, 'value')"
                   @blur="saveEdit(code, 'value')"
+                  type="number"
+                  step="any"
+                  autocomplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  name="value-{{ code }}"
                   class="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-24 bg-white"
+                  autofocus
                 />
               </div>
-              
+
               <!-- Visa värdet när det inte redigeras (klickbar för redigering) -->
               <div
                 v-else
@@ -184,11 +185,15 @@ const saveEdit = (code: string, field: 'value' | 'unit') => {
               >
                 {{ valueFormatter.format(rate.value) }}
               </div>
-              
+
               <!-- Type-badge (Crypto eller Fiat) -->
               <span
                 class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-2"
-                :class="rate.type === 'crypto' ? 'bg-purple-100 text-purple-800' : 'bg-sky-100 text-sky-800'"
+                :class="
+                  rate.type === 'crypto'
+                    ? 'bg-purple-100 text-purple-800'
+                    : 'bg-sky-100 text-sky-800'
+                "
               >
                 {{ rate.type }}
               </span>
@@ -198,7 +203,10 @@ const saveEdit = (code: string, field: 'value' | 'unit') => {
       </div>
 
       <!-- Meddelande när inget motsvarar sökningen -->
-      <div v-if="filteredAndSortedRates.length === 0" class="mt-6 text-sm text-gray-600">
+      <div
+        v-if="filteredAndSortedRates.length === 0"
+        class="mt-6 text-sm text-gray-600"
+      >
         Inga resultat för sökningen.
       </div>
     </div>
