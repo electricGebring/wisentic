@@ -71,7 +71,7 @@ const saveEdit = (code: string, field: "value" | "unit") => {
   if (field === "unit") {
     store.exchangeRates[code].unit = localUnit.value.trim();
   } else {
-    const parsed = Number(localValue.value); // använd motsv. ref för value
+    const parsed = Number(localValue.value);
     if (!Number.isNaN(parsed)) store.exchangeRates[code].value = parsed;
   }
   editingCode.value = null;
@@ -136,7 +136,7 @@ const saveEdit = (code: string, field: "value" | "unit") => {
                   {{ rate.unit }}
                 </span>
 
-                <!-- Contenteditable div för redigering av enhet -->
+                <!-- Input-fält för redigering av enhet -->
                 <input
                   v-else
                   v-model="localUnit"
@@ -144,9 +144,6 @@ const saveEdit = (code: string, field: "value" | "unit") => {
                   @keydown.escape="saveEdit(code, 'unit')"
                   @blur="saveEdit(code, 'unit')"
                   type="text"
-                  autocomplete="off"
-                  data-lpignore="true"
-                  data-form-type="other"
                   name="unit-{{ code }}"
                   class="px-2 py-1 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-16 bg-white"
                   autofocus
@@ -168,9 +165,6 @@ const saveEdit = (code: string, field: "value" | "unit") => {
                   @blur="saveEdit(code, 'value')"
                   type="number"
                   step="any"
-                  autocomplete="off"
-                  data-lpignore="true"
-                  data-form-type="other"
                   name="value-{{ code }}"
                   class="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 w-24 bg-white"
                   autofocus
